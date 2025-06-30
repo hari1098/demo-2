@@ -16,12 +16,11 @@ import org.springframework.stereotype.Service;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Service
-public class InvoicePdfService {
+public class QuotationPdfService {
 
     @Autowired
     private QuatService quatService;
@@ -35,12 +34,8 @@ public class InvoicePdfService {
     private static final String COMPANY_EMAIL = "sales@yourcompany.com";
     private static final String COMPANY_PHONE = "+91 9876543210";
     private static final String COMPANY_WEBSITE = "www.yourcompany.com";
-    private static final String COMPANY_GSTIN = "22AAAAA0000A1Z5";
 
-    private static final float GST_RATE = 0.18f;
-    private static final float DISCOUNT_RATE = 0.05f; // 5% discount
-
-    public byte[] generateInvoicePdf(Long quatId) throws IOException {
+    public byte[] generateQuotationPdf(Long quatId) throws IOException {
         // Validate quatId
         if (quatId == null || quatId <= 0) {
             throw new IllegalArgumentException("Invalid quotation ID");
@@ -72,11 +67,11 @@ public class InvoicePdfService {
             // Add company header
             yPosition = addCompanyHeader(contentStream, yPosition, margin, pageWidth);
 
-            // Add invoice title
-            yPosition = addInvoiceTitle(contentStream, yPosition, margin, pageWidth);
+            // Add quotation title
+            yPosition = addQuotationTitle(contentStream, yPosition, margin, pageWidth);
 
-            // Add invoice details
-            yPosition = addInvoiceDetails(contentStream, yPosition, margin, pageWidth, quat);
+            // Add quotation details
+            yPosition = addQuotationDetails(contentStream, yPosition, margin, pageWidth, quat);
 
             // Add customer details
             yPosition = addCustomerDetails(contentStream, yPosition, margin, pageWidth, customer);
@@ -84,11 +79,11 @@ public class InvoicePdfService {
             // Add items table
             BigDecimal subTotal = addItemsTable(contentStream, yPosition, margin, pageWidth, quotationItems);
 
-            // Add totals with GST and discount
-            addInvoiceTotals(contentStream, 200, margin, pageWidth, subTotal);
+            // Add total (no GST or discount for quotation)
+            addQuotationTotal(contentStream, 150, margin, pageWidth, subTotal);
 
             // Add footer
-            addInvoiceFooter(contentStream, 100, margin, pageWidth);
+            addQuotationFooter(contentStream, 100, margin, pageWidth, quat);
         }
 
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -120,7 +115,7 @@ public class InvoicePdfService {
         contentStream.beginText();
         contentStream.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA), 10);
         contentStream.newLineAtOffset(margin, yPosition);
-        contentStream.showText("GSTIN: " + COMPANY_GSTIN + " | Email: " + COMPANY_EMAIL);
+        contentStream.showText("Email: " + COMPANY_EMAIL + " | Phone: " + COMPANY_PHONE);
         contentStream.endText();
 
         yPosition -= 15;
@@ -128,59 +123,52 @@ public class InvoicePdfService {
         contentStream.beginText();
         contentStream.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA), 10);
         contentStream.newLineAtOffset(margin, yPosition);
-        contentStream.showText("Phone: " + COMPANY_PHONE + " | Website: " + COMPANY_WEBSITE);
+        contentStream.showText("Website: " + COMPANY_WEBSITE);
         contentStream.endText();
 
         return yPosition - 30;
     }
 
-    private float addInvoiceTitle(PDPageContentStream contentStream, float yPosition, float margin, float pageWidth) throws IOException {
+    private float addQuotationTitle(PDPageContentStream contentStream, float yPosition, float margin, float pageWidth) throws IOException {
         contentStream.beginText();
         contentStream.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD), 18);
-        contentStream.newLineAtOffset(margin + pageWidth/2 - 40, yPosition);
-        contentStream.showText("INVOICE");
+        contentStream.newLineAtOffset(margin + pageWidth/2 - 50, yPosition);
+        contentStream.showText("QUOTATION");
         contentStream.endText();
 
         return yPosition - 30;
     }
 
-    private float addInvoiceDetails(PDPageContentStream contentStream, float yPosition, float margin, float pageWidth, Quat quat) throws IOException {
-        // Invoice number (based on quotation)
+    private float addQuotationDetails(PDPageContentStream contentStream, float yPosition, float margin, float pageWidth, Quat quat) throws IOException {
+        // Quotation number
         contentStream.beginText();
         contentStream.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD), 12);
         contentStream.newLineAtOffset(margin, yPosition);
-        contentStream.showText("Invoice No: ");
-        contentStream.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA), 12);
-        contentStream.showText("INV-" + quat.getQuatno());
-        contentStream.endText();
-
-        // Invoice date (current date)
-        contentStream.beginText();
-        contentStream.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD), 12);
-        contentStream.newLineAtOffset(margin + 300, yPosition);
-        contentStream.showText("Date: ");
-        contentStream.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA), 12);
-        contentStream.showText(LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd-MMM-yyyy")));
-        contentStream.endText();
-
-        yPosition -= 20;
-
-        // Reference quotation
-        contentStream.beginText();
-        contentStream.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD), 12);
-        contentStream.newLineAtOffset(margin, yPosition);
-        contentStream.showText("Reference Quote: ");
+        contentStream.showText("Quotation No: ");
         contentStream.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA), 12);
         contentStream.showText(quat.getQuatno());
         contentStream.endText();
 
-        // Due date (30 days from invoice date)
+        yPosition -= 20;
+
+        // Quotation date
         contentStream.beginText();
         contentStream.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD), 12);
-        contentStream.newLineAtOffset(margin + 300, yPosition);
-        contentStream.showText("Due Date: ");
+        contentStream.newLineAtOffset(margin, yPosition);
+        contentStream.showText("Date: ");
         contentStream.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA), 12);
-        contentStream.showText(LocalDateTime.now().plusDays(30).format(DateTimeFormatter.ofPattern("dd-MMM-yyyy")));
+        contentStream.showText(quat.getQuatDate().format(DateTimeFormatter.ofPattern("dd-MMM-yyyy")));
+        contentStream.endText();
+
+        yPosition -= 20;
+
+        // Valid until
+        contentStream.beginText();
+        contentStream.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD), 12);
+        contentStream.newLineAtOffset(margin, yPosition);
+        contentStream.showText("Valid Until: ");
+        contentStream.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA), 12);
+        contentStream.showText(quat.getQuatDate().plusDays(quat.getValidity()).format(DateTimeFormatter.ofPattern("dd-MMM-yyyy")));
         contentStream.endText();
 
         return yPosition - 30;
@@ -343,109 +331,57 @@ public class InvoicePdfService {
         return subTotal;
     }
 
-    private void addInvoiceTotals(PDPageContentStream contentStream, float yPosition, float margin, float pageWidth, BigDecimal subTotal) throws IOException {
-        float totalBoxWidth = 250;
+    private void addQuotationTotal(PDPageContentStream contentStream, float yPosition, float margin, float pageWidth, BigDecimal subTotal) throws IOException {
+        float totalBoxWidth = 200;
         float totalBoxX = margin + pageWidth - totalBoxWidth;
-        float lineHeight = 25;
 
-        // Calculate amounts
-        BigDecimal discountAmount = subTotal.multiply(BigDecimal.valueOf(DISCOUNT_RATE));
-        BigDecimal afterDiscount = subTotal.subtract(discountAmount);
-        BigDecimal gstAmount = afterDiscount.multiply(BigDecimal.valueOf(GST_RATE));
-        BigDecimal grandTotal = afterDiscount.add(gstAmount);
-
-        // Subtotal
-        contentStream.beginText();
-        contentStream.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA), 12);
-        contentStream.newLineAtOffset(totalBoxX, yPosition);
-        contentStream.showText("Subtotal:");
-        contentStream.newLineAtOffset(150, 0);
-        contentStream.showText("₹" + String.format("%.2f", subTotal));
-        contentStream.endText();
-
-        yPosition -= lineHeight;
-
-        // Discount
-        contentStream.beginText();
-        contentStream.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA), 12);
-        contentStream.newLineAtOffset(totalBoxX, yPosition);
-        contentStream.showText("Discount (" + (DISCOUNT_RATE * 100) + "%):");
-        contentStream.newLineAtOffset(150, 0);
-        contentStream.showText("-₹" + String.format("%.2f", discountAmount));
-        contentStream.endText();
-
-        yPosition -= lineHeight;
-
-        // After discount
-        contentStream.beginText();
-        contentStream.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA), 12);
-        contentStream.newLineAtOffset(totalBoxX, yPosition);
-        contentStream.showText("After Discount:");
-        contentStream.newLineAtOffset(150, 0);
-        contentStream.showText("₹" + String.format("%.2f", afterDiscount));
-        contentStream.endText();
-
-        yPosition -= lineHeight;
-
-        // GST
-        contentStream.beginText();
-        contentStream.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA), 12);
-        contentStream.newLineAtOffset(totalBoxX, yPosition);
-        contentStream.showText("GST (" + (GST_RATE * 100) + "%):");
-        contentStream.newLineAtOffset(150, 0);
-        contentStream.showText("₹" + String.format("%.2f", gstAmount));
-        contentStream.endText();
-
-        yPosition -= lineHeight;
-
-        // Grand Total with background
-        contentStream.setNonStrokingColor(0.9f, 0.9f, 0.9f);
-        contentStream.addRect(totalBoxX - 5, yPosition - 5, totalBoxWidth, 25);
+        // Total box background
+        contentStream.setNonStrokingColor(0.95f, 0.95f, 0.95f);
+        contentStream.addRect(totalBoxX, yPosition - 30, totalBoxWidth, 30);
         contentStream.fill();
         contentStream.setNonStrokingColor(0f, 0f, 0f);
 
+        // Total text
         contentStream.beginText();
         contentStream.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD), 14);
-        contentStream.newLineAtOffset(totalBoxX, yPosition);
-        contentStream.showText("Grand Total:");
-        contentStream.newLineAtOffset(150, 0);
-        contentStream.showText("₹" + String.format("%.2f", grandTotal));
+        contentStream.newLineAtOffset(totalBoxX + 10, yPosition - 20);
+        contentStream.showText("Total: ₹" + String.format("%.2f", subTotal));
         contentStream.endText();
 
-        // Border around totals
-        contentStream.addRect(totalBoxX - 5, yPosition - 5, totalBoxWidth, 130);
+        // Total box border
+        contentStream.addRect(totalBoxX, yPosition - 30, totalBoxWidth, 30);
         contentStream.stroke();
     }
 
-    private void addInvoiceFooter(PDPageContentStream contentStream, float yPosition, float margin, float pageWidth) throws IOException {
+    private void addQuotationFooter(PDPageContentStream contentStream, float yPosition, float margin, float pageWidth, Quat quat) throws IOException {
         contentStream.beginText();
-        contentStream.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD), 10);
+        contentStream.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA), 9);
         contentStream.newLineAtOffset(margin, yPosition);
-        contentStream.showText("Payment Terms:");
+        contentStream.showText("Terms & Conditions:");
         contentStream.endText();
 
         yPosition -= 15;
 
         contentStream.beginText();
-        contentStream.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA), 9);
+        contentStream.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA), 8);
         contentStream.newLineAtOffset(margin, yPosition);
-        contentStream.showText("• Payment due within 30 days of invoice date");
+        contentStream.showText("1. This quotation is valid for " + quat.getValidity() + " days from the date of issue.");
         contentStream.endText();
 
         yPosition -= 12;
 
         contentStream.beginText();
-        contentStream.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA), 9);
+        contentStream.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA), 8);
         contentStream.newLineAtOffset(margin, yPosition);
-        contentStream.showText("• Late payment charges: 2% per month");
+        contentStream.showText("2. Payment terms: 50% advance, 50% before delivery.");
         contentStream.endText();
 
         yPosition -= 12;
 
         contentStream.beginText();
-        contentStream.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA), 9);
+        contentStream.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA), 8);
         contentStream.newLineAtOffset(margin, yPosition);
-        contentStream.showText("• All disputes subject to Coimbatore jurisdiction");
+        contentStream.showText("3. Delivery within 15 days after order confirmation.");
         contentStream.endText();
 
         yPosition -= 20;
